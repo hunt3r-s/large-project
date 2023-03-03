@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const { ObjectId } = require('mongodb');
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
@@ -20,8 +21,10 @@ app.use((req, res, next) =>
 
 const url = 'mongodb+srv://alexslort:COP4331@cluster0.pmypipy.mongodb.net/LargeProject?retryWrites=true&w=majority';
 const MongoClient = require("mongodb").MongoClient;
+const mongo = require("mongodb");
 const client = new MongoClient(url);
 client.connect(console.log("mongodb connected"));
+
 
 app.post('/api/login', async (req, res, next) => 
 {
@@ -119,10 +122,13 @@ app.post('/api/getDrinks', async (req, res, next) =>
   // incoming: userId
   // outgoing: drink data
   var error = '';
-  const { name } = req.body;
+  const { userId } = req.body;
+  var o_id = new mongo.ObjectId(userId);
+  //console.log(userID);
   
   const db = client.db("LargeProject");
-  const user = await db.collection('users').find({firstName:name}).toArray();
+  const user = await db.collection('users').find({_id:o_id}).toArray();
+  //console.log(user);
   
   
   if( user.length > 0 )
@@ -150,6 +156,10 @@ app.post('/api/getDrinks', async (req, res, next) =>
     res.status(200).json(ret);
 
 
+  }
+  else{
+    var ret = {error: 'no user found'};
+    res.status(200).json(ret);
   }
   
   
