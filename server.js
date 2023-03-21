@@ -26,6 +26,7 @@ const client = new MongoClient(url);
 client.connect(console.log("mongodb connected"));
 
 
+//Login
 app.post('/api/login', async (req, res, next) => 
 {
   // incoming: email, password
@@ -70,6 +71,7 @@ app.post('/api/login', async (req, res, next) =>
   }
 });
 
+// Register or Create User
 app.post('/api/createUser', async (req, res, next) => 
 {
   // incoming: firstName, lastName, email, password
@@ -95,6 +97,7 @@ app.post('/api/createUser', async (req, res, next) =>
   }
 });
 
+// Search Ingredients
 app.post('/api/searchIngredient', async (req, res, next) => 
 {
   // incoming: userId, search
@@ -117,6 +120,7 @@ app.post('/api/searchIngredient', async (req, res, next) =>
   res.status(200).json(ret);
 });
 
+// Get Drinks
 app.post('/api/getDrinks', async (req, res, next) => 
 {
   // incoming: userId
@@ -165,6 +169,7 @@ app.post('/api/getDrinks', async (req, res, next) =>
   
 });
 
+// Search Drink 
 app.post('/api/searchDrink', async (req, res, next) => 
 {
   // incoming: search
@@ -185,6 +190,218 @@ app.post('/api/searchDrink', async (req, res, next) =>
   
   var ret = {results:_ret, error:error};
   res.status(200).json(ret);
+});
+
+//crashed
+app.post('/api/addDrink', async (req, res, next) => 
+{
+  // incoming: name, ingredients needed, measurements, instructions, img
+  // outgoing: id, name, ingredients needed, measurements, instructions, img
+  var error = '';
+  const {name, ingNeeded, ingMeasurements, instructions, img} = req.body;
+  const db = client.db("LargeProject");
+  const search = await db.collection('Drinks').find({name:name}).toArray();
+
+
+  if( search.length > 0 )
+  {
+    var results = {error: 'drink already exists'};
+    res.status(200).json(results);
+  }
+  else{
+    const results = await db.collection('Drinks').insertOne({name:name, ingNeeded:ingNeeded, ingMeasurements:ingMeasurements, instructions:instructions, img:img});
+    res.status(200).json(results);
+  }
+});
+
+// edit drink
+app.post('/api/editDrink', async (req, res, next) =>
+{
+  // incoming: name, ingredients needed, measurements, instructions, img
+  // outgoing: id, name, ingredients needed, measurements, instructions, img
+  var error = '';
+  const {name, ingNeeded, ingMeasurements, instructions, img} = req.body;
+  const db = client.db("LargeProject");
+  const search = await db.collection('Drinks').find({name:name}).toArray();
+
+  if( search.length > 0 )
+  {
+    const results = await db.collection('Drinks').updateOne({_id: search[0]._id}, {$set :{name:name, ingNeeded:ingNeeded, ingMeasurements:ingMeasurements, instructions:instructions, img:img}});
+    const updated = await db.collection('Drinks').find({name:name}).toArray();
+    res.status(200).json(updated[0]);
+  } else {
+    var results = {error: 'drink doesnt exist'};
+    res.status(200).json(results);
+  }
+});
+
+//delete drink
+//big e error
+app.delete('/api/deleteDrinks', async (req, res, next) =>
+{
+  // incoming: name
+  // outgoing: results[], error
+  var error = '';
+  const {name } = req.body;
+  
+  const db = client.db("LargeProject");
+  const user = await db.collection('Drinks').find({name: name}).toArray();
+
+
+  if(user.length>0)
+  {
+    const remove = await db.collection('Drinks').deleteOne({name:name});
+    res.status(200).json(remove);
+  }
+  else
+  {
+    var ret = {error: 'Drink not found'};
+    res.status(200).json(ret);
+  }
+  
+});
+
+// add and delete favorite section
+app.post('/api/addFavorite', async (req, res, next) => 
+{
+  // incoming: search
+  // outgoing: results[], error
+  var error = '';
+  const { userId, name } = req.body;
+  var o_id = new mongo.ObjectId(userId);
+  
+  const db = client.db("LargeProject");
+  const user = await db.collection('users').find({_id: o_id}).toArray();
+
+  if(user.length>0)
+  {
+    const result = await db.collection('Drinks').find({name: name}).toArray();
+
+    if(result.length>0)
+    {
+      const add = await db.collection('users').updateOne({_id:user[0]._id}, {$addToSet:{savedDrinks:name}});
+      const updated = await db.collection('users').find({_id: o_id}).toArray();
+      res.status(200).json(updated[0]);
+    }
+    else
+    {
+      var ret = {error: 'Drink not found'};
+      res.status(200).json(ret);
+    }
+  }
+  else{
+    var ret = {error: 'user not found'};
+    res.status(200).json(ret);
+  }
+  
+});
+
+//deleted the entire user
+//asf@gmail.com asedf123
+//6418f1dc2700c0cee24ac59c
+app.delete('/api/deleteFavorite', async (req, res, next) => 
+{
+  // incoming: search
+  // outgoing: results[], error
+  var error = '';
+  const { userId, name } = req.body;
+  var o_id = new mongo.ObjectId(userId);
+  
+  const db = client.db("LargeProject");
+  const user = await db.collection('users').find({_id: o_id}).toArray();
+
+  if(user.length>0)
+  {
+    const result = await db.collection('Drinks').find({name: name}).toArray();
+
+    if(result.length>0)
+    {
+      const add = await db.collection('users').updateOne({_id:user[0]._id}, {$pull:{savedDrinks:name}});
+      const updated = await db.collection('users').find({_id: o_id}).toArray();
+      res.status(200).json(updated[0]);
+    }
+    else
+    {
+      var ret = {error: 'Drink not found'};
+      res.status(200).json(ret);
+    }
+  }
+  else{
+    var ret = {error: 'user not found'};
+    res.status(200).json(ret);
+  }
+  
+});
+
+
+app.post('/api/addIngredientToBar', async (req, res, next) => 
+{
+  // incoming: search
+  // outgoing: results[], error
+  var error = '';
+  const { userId, ingName } = req.body;
+  var o_id = new mongo.ObjectId(userId);
+  
+  const db = client.db("LargeProject");
+  const user = await db.collection('users').find({_id: o_id}).toArray();
+
+  if(user.length>0)
+  {
+    const result = await db.collection('ingredients').find({ingredient: ingName}).toArray();
+
+    if(result.length>0)
+    {
+      const add = await db.collection('users').updateOne({_id:user[0]._id}, {$addToSet:{bar:ingName}});
+      const updated = await db.collection('users').find({_id: o_id}).toArray();
+      res.status(200).json(updated[0]);
+    }
+    else
+    {
+      var ret = {error: 'ingredient not found'};
+      res.status(200).json(ret);
+    
+    }
+  }
+  else{
+    var ret = {error: 'user not found'};
+    res.status(200).json(ret);
+  }
+  
+});
+
+app.delete('/api/deleteIngredientInBar', async (req, res, next) => 
+{
+  // incoming: search
+  // outgoing: results[], error
+  var error = '';
+  const { userId, ingName } = req.body;
+  var o_id = new mongo.ObjectId(userId);
+  
+  const db = client.db("LargeProject");
+  const user = await db.collection('users').find({_id: o_id}).toArray();
+
+  if(user.length>0)
+  {
+    const result = await db.collection('ingredients').find({ingredient: ingName}).toArray();
+
+    if(result.length>0)
+    {
+      const add = await db.collection('users').updateOne({_id:user[0]._id}, {$pull:{bar:ingName}});
+      const updated = await db.collection('users').find({_id: o_id}).toArray();
+      res.status(200).json(updated[0]);
+    }
+    else
+    {
+      var ret = {error: 'ingredient not found'};
+      res.status(200).json(ret);
+    
+    }
+  }
+  else{
+    var ret = {error: 'user not found'};
+    res.status(200).json(ret);
+  }
+  
 });
 
 app.listen(5000); // start Node + Express server on port 5000
